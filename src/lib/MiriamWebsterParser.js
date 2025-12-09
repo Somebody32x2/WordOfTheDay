@@ -1,7 +1,7 @@
 const replacements = {
     "{wi}": "<i>",
     "{/wi}": "</i>",
-    "{bc}": "; ",
+    "{bc}": "<b>:</b> ",
 }
 const reReplacementPatterns = [
     // {a_link|WORD} -> WORD
