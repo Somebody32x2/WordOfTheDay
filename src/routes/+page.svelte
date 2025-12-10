@@ -1,7 +1,7 @@
 <script>
     import {MiramWebsterToHTML} from "$lib/MiriamWebsterParser.js";
     import { PUBLIC_TITLE } from "$env/static/public";
-    // TODO: change the title to today's word
+    // TODO: change the title to today's word, theme switcher
     let today = "alacrity"
     let day = "12/8/2025"
     let def = MiramWebsterToHTML("{bc}promptness in response {bc}cheerful readiness ")

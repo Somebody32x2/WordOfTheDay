@@ -1,0 +1,12 @@
+{
+  "theme_color": "#5d0ec0",
+  "background_color": "#101828",
+  "orientation": "any",
+  "display": "standalone",
+  "dir": "auto",
+  "lang": "en-US",
+  "name": "WOTD-Admin",
+  "short_name": "wotd",
+  "start_url": "https://samuelshuster.com/wotd/admin",
+  "scope": "https://samuelshuster.com/"
+}
