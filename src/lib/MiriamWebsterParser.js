@@ -2,6 +2,9 @@ const replacements = {
     "{wi}": "<i>",
     "{/wi}": "</i>",
     "{bc}": "<b>:</b> ",
+    "{qword}": "<i>",
+    "{/qword}": "</i>",
+    "{br}": "<br>",
 }
 const reReplacementPatterns = [
     // {a_link|WORD} -> WORD

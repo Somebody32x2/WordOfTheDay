@@ -21,16 +21,16 @@
 </script>
 <div class="w-full flex flex-col items-center dark:bg-gray-900 bg-slate-200 dark:text-white min-h-[100vh] pb-10">
     <div class="w-full bg-violet-800 flex justify-center">
-        <h1 class="text-white font-bold text-center text-2xl m-4">{PUBLIC_TITLE} Word of the Day<i class="text-xs relative bottom-[0.55rem] lg:bottom-[0.5rem]">*</i></h1>
+        <h1 class="text-white font-bold text-center text-2xl m-4"><a class="hover:underline hover:decoration-dashed active:decoration-wavy active:decoration-1" href="https://{PUBLIC_TITLE}">{PUBLIC_TITLE}</a> Word of the Day<i class="text-xs relative bottom-[0.55rem] lg:bottom-[0.5rem]">*</i></h1>
     </div>
     <div class="w-[70%] mt-8">
         <h4 class="w-full text-center text-2xl mb-2">{day}</h4>
         <h1 class="text-4xl md:text-6xl font-bold italic text-center">{today}</h1>
     </div>
 
-    <div class="md:w-[60%] mt-8 bg-slate-100 dark:bg-slate-800 text-center text-xl mb-2 px-4 rounded-lg border-slate-400 border pt-3" >
+    <div class="md:w-[60%] mt-8 bg-slate-100 dark:bg-slate-800 text-center text-xl mb-2 px-4 rounded-lg border-slate-400 border { entries.length > 1 ? 'pt-3' : '' }" >
         {#each entries as entry, index}
-            <div class="my-4 h-10">
+            <div class="my-4 min-h-10">
                 {@html entry}
             </div>
             {#if index < entries.length - 1}
