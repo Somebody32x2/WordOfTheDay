@@ -1,7 +1,8 @@
 <script>
     import {MiramWebsterToHTML} from "$lib/MiriamWebsterParser.js";
-    import {PUBLIC_TITLE, PUBLIC_API_ENDPOINT} from "$env/static/public";
+    import {PUBLIC_TITLE, PUBLIC_API_ENDPOINT, PUBLIC_ADMIN_ROOT} from "$env/static/public";
     import TextAreaAutoResize from "$lib/TextAreaAutoResize.svelte";
+    import {onMount} from "svelte";
     // TODO: change the title to today's word, theme switcher
     let new_word = ""
     let day = Intl.DateTimeFormat('en-US', {
@@ -9,6 +10,34 @@
         day: '2-digit',
         year: 'numeric'
     }).format(new Date())
+    let authenticated = false;
+    let authPwd = "";
+    let future = {}
+
+    onMount(async () => {
+        let r = await fetch(`${PUBLIC_ADMIN_ROOT}/future.json`)
+        if (r.status === 200) {
+            authenticated = true;
+            future = await r.json()
+        } else {
+            authenticated = false;
+        }
+    })
+
+    async function tryAuth() {
+        let r = await fetch(`${PUBLIC_ADMIN_ROOT}/`, {
+            "body": `username=&page=${PUBLIC_ADMIN_ROOT.split("/").pop()}&password=${encodeURI(authPwd)}`,
+            "method": "POST",
+            "mode": "cors",
+            "credentials": "include"
+        });
+        if (r.status === 401) {
+            alert("Authentication failed.")
+        } else if (r.status === 200) {
+            authenticated = true;
+            // future = await r.json()
+        }
+    }
 
     let entries = {
         "def": "",
@@ -107,45 +136,57 @@
         <h1 class="text-white font-bold text-center text-2xl m-4">{PUBLIC_TITLE} Word of the Day<i
                 class="text-xs relative bottom-[0.55rem] lg:bottom-[0.5rem]">*</i></h1>
     </div>
-    <div class="w-[70%] mt-8 flex flex-col items-center">
-        <h4 class="w-full text-center text-2xl mb-2">{day}</h4>
-        <input placeholder="ingenuity"
-               class="pb-2 text-4xl md:text-6xl font-bold italic text-center dark:bg-slate-600 rounded-2xl"
-               bind:value={new_word}>
-    </div>
-    <button on:click={fetchMW}
-            class="mt-4 text-2xl bg-violet-800 py-3 rounded-2xl px-8 font-bold border border-violet-400 hover:bg-violet-900 active:bg-violet-950 active:ring-4 transition-all ring-violet-500">
-        Fetch Meriam Webster
-    </button>
-    <div id="statusBox"
-         class="mt-4 -mb-4 w-full md:w-[70%] bg-slate-800 text-xl font-mono text-left px-4 rounded-lg border-slate-400 border p-2">
-        <p>ooh bad error</p></div>
-    <div id="detailsbox"
-         class="md:w-[70%] flex flex-col mt-8 min-h-80 bg-slate-100 dark:bg-slate-800 text-center text-xl mb-2 px-4 rounded-lg border-slate-400 border pt-3">
+    {#if authenticated}
+        <div class="w-[70%] mt-8 flex flex-col items-center">
+            <h4 class="w-full text-center text-2xl mb-2">{day}</h4>
+            <input placeholder="ingenuity"
+                   class="pb-2 text-4xl md:text-6xl font-bold italic text-center dark:bg-slate-600 rounded-2xl"
+                   bind:value={new_word}>
+        </div>
+        <button on:click={fetchMW}
+                class="mt-4 text-2xl bg-violet-800 py-3 rounded-2xl px-8 font-bold border border-violet-400 hover:bg-violet-900 active:bg-violet-950 active:ring-4 transition-all ring-violet-500">
+            Fetch Merriam Webster
+        </button>
+        <div id="statusBox"
+             class="mt-4 -mb-4 w-full md:w-[70%] bg-slate-800 text-xl font-mono text-left px-4 rounded-lg border-slate-400 border p-2">
+            <p>ooh bad error</p></div>
+        <div id="detailsbox"
+             class="md:w-[70%] flex flex-col mt-8 min-h-80 bg-slate-100 dark:bg-slate-800 text-center text-xl mb-2 px-4 rounded-lg border-slate-400 border pt-3">
 
-        <h3>Definition:</h3>
-        <TextAreaAutoResize placeholder="" bind:value={entries["def"]} minRows={4} maxRows={40}></TextAreaAutoResize>
-        <hr class="border-slate-500 mx-auto mt-2" style="width: {3+2}0%;"/>
-        <h3>Extended Definition:</h3>
-        <TextAreaAutoResize placeholder="" bind:value={entries["extended_def"]} minRows={4} maxRows={40}></TextAreaAutoResize>
-        <hr class="border-slate-500 mx-auto mt-2" style="width: {3+2*2}0%;"/>
-        <h3>Note: </h3>
-        <TextAreaAutoResize placeholder="" bind:value={entries["note"]} minRows={4} maxRows={40}></TextAreaAutoResize>
+            <h3>Definition:</h3>
+            <TextAreaAutoResize placeholder="" bind:value={entries["def"]} minRows={4}
+                                maxRows={40}></TextAreaAutoResize>
+            <hr class="border-slate-500 mx-auto mt-2" style="width: {3+2}0%;"/>
+            <h3>Extended Definition:</h3>
+            <TextAreaAutoResize placeholder="" bind:value={entries["extended_def"]} minRows={4}
+                                maxRows={40}></TextAreaAutoResize>
+            <hr class="border-slate-500 mx-auto mt-2" style="width: {3+2*2}0%;"/>
+            <h3>Note: </h3>
+            <TextAreaAutoResize placeholder="" bind:value={entries["note"]} minRows={4}
+                                maxRows={40}></TextAreaAutoResize>
 
 
-    </div>
-    <div class="md:w-[60%] mt-8 bg-slate-100 dark:bg-slate-800 text-center text-xl mb-2 px-4 rounded-lg border-slate-400 border { previewEntries.length > 1 ? 'pt-3' : '' }">
-        {#key updateCounter}
-            {#each previewEntries as entry, index}
-                <div class="my-4 min-h-10">
-                    {@html entry}
-                </div>
-                {#if index < previewEntries.length - 1}
-                    <hr class="border-slate-500 mx-auto" style="width: {3+2*index}0%;"/>
-                {/if}
-            {/each}
-        {/key}
-    </div>
+        </div>
+        <div class="md:w-[60%] mt-8 bg-slate-100 dark:bg-slate-800 text-center text-xl mb-2 px-4 rounded-lg border-slate-400 border { previewEntries.length > 1 ? 'pt-3' : '' }">
+            {#key updateCounter}
+                {#each previewEntries as entry, index}
+                    <div class="my-4 min-h-10">
+                        {@html entry}
+                    </div>
+                    {#if index < previewEntries.length - 1}
+                        <hr class="border-slate-500 mx-auto" style="width: {3+2*index}0%;"/>
+                    {/if}
+                {/each}
+            {/key}
+        </div>
+    {:else }
+        <div class="md:w-[70%] mt-8 bg-slate-100 dark:bg-slate-700 text-center text-xl mb-2 p-4 rounded-lg border-slate-400 border">
+            <label>Password: <input placeholder="Password1" class="pl-1 dark:bg-slate-500 rounded-lg" type="password" bind:value={authPwd}></label>
+            <button class="text-lg bg-violet-800 py-1 rounded-2xl px-4 font-bold border border-violet-400 hover:bg-violet-900 active:bg-violet-950 active:ring-4 transition-all ring-violet-500" on:click={tryAuth}>Log In</button>
+        </div>
+    {/if}
+
+
 </div>
 <style>
     @reference "tailwindcss";
