@@ -12,7 +12,8 @@
     import {Datepicker} from "flowbite-svelte";
     // TODO: change the title to today's word, theme switcher
     let new_word = ""
-    let day = new Date()//.toISOString().split("T")[0];
+    let selectedDate = new Date()//.toLocaleDateString('en-CA')
+    let oldDate = new Date()//.toLocaleDateString('en-CA')
     let authenticated = false;
     let authPwd = "";
     let words = {}
@@ -20,12 +21,34 @@
 
     onMount(async () => {
         fetch(`${PUBLIC_WORDS_JSON}`).then(res => res.json()).then(data => {
-            words = { ...words, ...data  }
+            console.log(data)
+            words = {...words, ...data}
+            console.log("new words:", words)
+            if (words[selectedDate.toLocaleDateString('en-CA')] !== undefined && words[selectedDate.toLocaleDateString('en-CA')].word !== new_word) {
+                new_word = words[selectedDate.toLocaleDateString('en-CA')].word
+                entries = {
+                    "def": words[selectedDate.toLocaleDateString('en-CA')]?.def || "",
+                    "extended_def": words[selectedDate.toLocaleDateString('en-CA')]?.extended_def || "",
+                    "note": words[selectedDate.toLocaleDateString('en-CA')]?.note || ""
+                }
+            }
+            makeCalendarStyles();
         })
         let r = await fetch(`${PUBLIC_ADMIN_ROOT}/future.json`)
         if (r.status === 200) {
             authenticated = true;
-            words = { ...words, ...(await r.json())}
+            let futureWords = await r.json()
+            words = {...words, ...await futureWords}
+            console.log("Authenticated, loaded future words:", words)
+            if (words[selectedDate.toLocaleDateString('en-CA')] !== undefined && words[selectedDate.toLocaleDateString('en-CA')].word !== new_word) {
+                new_word = words[selectedDate.toLocaleDateString('en-CA')].word
+                entries = {
+                    "def": words[selectedDate.toLocaleDateString('en-CA')]?.def || "",
+                    "extended_def": words[selectedDate.toLocaleDateString('en-CA')]?.extended_def || "",
+                    "note": words[selectedDate.toLocaleDateString('en-CA')]?.note || ""
+                }
+            }
+            makeCalendarStyles();
         } else {
             console.log("Not authenticated, redirecting to login.")
             document.location = `${PUBLIC_ADMIN_ROOT}`
@@ -33,9 +56,9 @@
     })
 
     let entries = {
-        "def": "",
-        "extended_def": "",
-        "note": ""
+        "def": words[selectedDate.toLocaleDateString('en-CA')]?.def || "",
+        "extended_def": words[selectedDate.toLocaleDateString('en-CA')]?.extended_def || "",
+        "note": words[selectedDate.toLocaleDateString('en-CA')]?.note || ""
     }
 
     async function fetchMW() {
@@ -111,6 +134,7 @@
     let updateCounter = 0;
 
     function updatePreviewEntries() {
+        previewEntries = []
         if (entries.def !== "") {
             previewEntries.push(MiramWebsterToHTML(entries.def))
         }
@@ -125,22 +149,121 @@
 
     function publishWord() {
         fetch(`${PUBLIC_ADMIN_ROOT}`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                date: day.toISOString().split("T")[0],
-                word: {
-                    word: new_word,
-                    def: entries["def"],
-                    extended_def: entries["extended_def"],
-                    note: entries["note"]
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
                 },
-            })
+                body: JSON.stringify({
+                    date: selectedDate.toLocaleDateString('en-CA'),
+                    word: {
+                        word: new_word,
+                        def: entries["def"],
+                        extended_def: entries["extended_def"],
+                        note: entries["note"]
+                    },
+                })
+            }
+        )
+        refreshWords();
+    }
+
+    function refreshWords() {
+        let new_words = {}
+        let words_found = 0;
+        fetch(`${PUBLIC_WORDS_JSON}`).then(res => res.json()).then(data => {
+            console.log(data)
+            new_words = {...new_words, ...data}
+            words_found += 1;
+            if (words_found === 2) {
+                words = new_words // we got both
+            }
+        })
+        // Future
+        fetch(`${PUBLIC_ADMIN_ROOT}/future.json`).then(res => res.json()).then(data => {
+            console.log(data)
+            new_words = {...new_words, ...data}
+            words_found += 1;
+            if (words_found === 2) {
+                words = new_words // we got both
+            }
+        })
+        makeCalendarStyles();
+    }
+
+    let stylesheet = null;
+
+    function makeCalendarStyles() {
+        if (stylesheet === null) {
+            stylesheet = new CSSStyleSheet();
+            // add to document
+            document.adoptedStyleSheets = [...document.adoptedStyleSheets, stylesheet];
         }
 
-        )
+        // Generate styles for the datepicker
+        let css = ""
+        for (const [date, dateEntry] of Object.entries(words)) {
+            let [year, month, day] = date.split("-")
+            let dateString = new Date(year, month-1, day).toLocaleDateString("en-US", {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            })
+            let content = ""
+            if (new Date(year, month - 1, day) > new Date()){
+                content = "background-color: oklch(51.8% 0.253 323.949); color: white;"
+            } else {
+                content = "background-color: oklch(54.6% 0.245 262.881); color: white;"
+            }
+            css += `#datepickerContainer > div > div > div > button[aria-label="${dateString}"] { ${content} }\n`
+        }
+        // Apply the styles
+        stylesheet.replaceSync(css);
+    }
+
+    function onDateChange(date) {
+        console.log(`switching date from ${oldDate.toLocaleDateString('en-CA')} to ${date.toLocaleDateString('en-CA')}`);
+        // debugger
+        let oldWordEntry = words[oldDate.toLocaleDateString('en-CA')] !== undefined ? words[oldDate.toLocaleDateString('en-CA')] : {
+            "word": "",
+            "def": "",
+            "extended_def": "",
+            "note": ""
+        };
+        let changes = false;
+        let deltaMsg = ""
+        for (const field of ["def", "extended_def", "note"]) {
+            if (entries[field] !== oldWordEntry[field]) {
+                changes = true;
+                deltaMsg += `\n${field}: from "${oldWordEntry[field]}" to "${entries[field]}"\n`
+            }
+        }
+        if (oldWordEntry["word"] !== new_word) {
+            changes = true;
+            deltaMsg += `\nword: from "${oldWordEntry["word"]}" to "${new_word}"\n`
+        }
+        if (changes) {
+            let decision = confirm(`You have unsaved changes for the current date: ${deltaMsg} Proceed without saving? (Changes will be lost.)`)
+            if (!decision) {
+                return; // abort date change
+            }
+        }
+        selectedDate = date;
+        // console.log("chdate words: ", words)
+        new_word = words[selectedDate.toLocaleDateString('en-CA')]?.word || ""
+        entries = {
+            "def": words[selectedDate.toLocaleDateString('en-CA')]?.def || "",
+            "extended_def": words[selectedDate.toLocaleDateString('en-CA')]?.extended_def || "",
+            "note": words[selectedDate.toLocaleDateString('en-CA')]?.note || ""
+        }
+        console.log("new entries: ", entries)
+        updatePreviewEntries()
+        oldDate = new Date(date);
+    }
+
+    function handleDeltaDate(event) {
+        selectedDate.setDate(selectedDate.getDate() + Number(event.currentTarget.dataset.deltaDate));
+        onDateChange(selectedDate)
     }
 
 </script>
@@ -151,19 +274,28 @@
     </div>
     {#if authenticated}
         <div class="w-[70%] mt-8 flex flex-col items-center">
-            <div id="datepickerContainer">
-                <Datepicker bind:value={day}>:</Datepicker>
+            <div id="datepickerContainer" class="flex justify-between w-full">
+                <button on:click={handleDeltaDate} data-delta-date="-1"
+                        class="text-2xl text-white bg-violet-800 py-1 rounded-2xl px-3 font-bold border border-violet-400 hover:bg-violet-900 active:bg-violet-950 active:ring-4 transition-all ring-violet-500">
+                    ❮
+                </button>
+                <Datepicker onselect={onDateChange} color="violet" bind:value={selectedDate}>:</Datepicker>
+                <!--                classes={{ polite: "hover:text-blue-700!", dayButton: "hover:text-blue-400", titleVariant: "text-blue-800", monthButton: "text-blue-700" }}-->
+                <button on:click={handleDeltaDate} data-delta-date="1"
+                        class="text-2xl text-white bg-violet-800 py-1 rounded-2xl px-3 font-bold border border-violet-400 hover:bg-violet-900 active:bg-violet-950 active:ring-4 transition-all ring-violet-500">
+                    ❯
+                </button>
             </div>
-            <h4 class="w-full text-center text-2xl mb-2">
-                <!--                <input class="decoration-white dark:scheme-dark w-40" type="date" bind:value={day}>-->
-                <!--                {day.toLocaleDateString()}-->
-            </h4>
+            <!--            <h4 class="w-full text-center text-2xl mb-2">-->
+            <!--                <input class="decoration-white dark:scheme-dark w-40" type="date" bind:value={day}>-->
+            <!--                {day.toLocaleDateString()}-->
+            <!--            </h4>-->
             <input placeholder="ingenuity"
-                   class="pb-2 text-4xl md:text-6xl font-bold italic text-center placeholder:opacity-50 dark:bg-slate-600 rounded-2xl"
+                   class="mt-2 pb-2 text-4xl md:text-6xl font-bold italic text-center placeholder:opacity-50 dark:bg-slate-600 rounded-2xl"
                    bind:value={new_word}>
         </div>
         <button on:click={fetchMW}
-                class="mt-4 text-xl bg-violet-800 py-2 rounded-2xl px-5 font-bold border border-violet-400 hover:bg-violet-900 active:bg-violet-950 active:ring-4 transition-all ring-violet-500">
+                class="mt-4 text-xl text-white bg-violet-800 py-2 rounded-2xl px-5 font-bold border border-violet-400 hover:bg-violet-900 active:bg-violet-950 active:ring-4 transition-all ring-violet-500">
             Fetch Merriam Webster
         </button>
         <div id="statusBox"
@@ -203,8 +335,11 @@
         <!--            <label>Password: <input placeholder="Password1" class="pl-1 dark:bg-slate-500 rounded-lg" type="password" bind:value={authPwd}></label>-->
         <!--            <button class="text-lg bg-violet-800 py-1 rounded-2xl px-4 font-bold border border-violet-400 hover:bg-violet-900 active:bg-violet-950 active:ring-4 transition-all ring-violet-500" on:click={tryAuth}>Log In</button>-->
         <!--        </div>-->
+        <button on:click={publishWord}
+                class="mt-2 text-2xl bg-violet-800 text-white py-3 rounded-2xl px-8 font-bold border border-violet-400 hover:bg-violet-900 active:bg-violet-950 active:ring-4 transition-all ring-violet-500">
+            Publish
+        </button>
     {/if}
-    <button on:click={publishWord} class="mt-2 text-2xl bg-violet-800 py-3 rounded-2xl px-8 font-bold border border-violet-400 hover:bg-violet-900 active:bg-violet-950 active:ring-4 transition-all ring-violet-500">Publish</button>
 
 
 </div>
@@ -218,6 +353,7 @@
     #detailsbox > h3 {
         @apply text-left mt-2;
     }
+
     :global(#datepickerContainer > div > div > input) {
         @apply text-lg;
     }
