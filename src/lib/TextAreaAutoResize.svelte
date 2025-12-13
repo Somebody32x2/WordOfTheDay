@@ -21,7 +21,7 @@
     @reference "tailwindcss";
     .container {
         position: relative;
-        @apply border border-slate-400 rounded-lg;
+        /*@apply border border-slate-400 rounded-lg;*/
     }
 
     pre {
@@ -46,5 +46,7 @@
         left: 0;
         top: 0;
         resize: none;
+        font-size: 1rem;
+        @apply w-full border border-slate-400 rounded-lg dark:bg-slate-600;
     }
 </style>

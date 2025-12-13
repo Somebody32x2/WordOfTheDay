@@ -4,6 +4,11 @@
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <title>Word of the Day</title>
+        <script>
+            if (document && document.location.pathname === "/wotd"){
+                document.location.pathname = "/wotd/";
+            }
+        </script>
         %sveltekit.head%
     </head>
     <body data-sveltekit-preload-data="hover">

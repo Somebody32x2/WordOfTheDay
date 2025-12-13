@@ -1,43 +1,36 @@
 <script>
     import {MiramWebsterToHTML} from "$lib/MiriamWebsterParser.js";
-    import {PUBLIC_TITLE, PUBLIC_API_ENDPOINT, PUBLIC_ADMIN_ROOT} from "$env/static/public";
+    import {
+        PUBLIC_TITLE,
+        PUBLIC_API_ENDPOINT,
+        PUBLIC_ADMIN_ROOT,
+        PUBLIC_API_ROOT,
+        PUBLIC_WORDS_JSON
+    } from "$env/static/public";
     import TextAreaAutoResize from "$lib/TextAreaAutoResize.svelte";
     import {onMount} from "svelte";
+    import {Datepicker} from "flowbite-svelte";
     // TODO: change the title to today's word, theme switcher
     let new_word = ""
-    let day = Intl.DateTimeFormat('en-US', {
-        month: '2-digit',
-        day: '2-digit',
-        year: 'numeric'
-    }).format(new Date())
+    let day = new Date()//.toISOString().split("T")[0];
     let authenticated = false;
     let authPwd = "";
-    let future = {}
+    let words = {}
+
 
     onMount(async () => {
+        fetch(`${PUBLIC_WORDS_JSON}`).then(res => res.json()).then(data => {
+            words = { ...words, ...data  }
+        })
         let r = await fetch(`${PUBLIC_ADMIN_ROOT}/future.json`)
         if (r.status === 200) {
             authenticated = true;
-            future = await r.json()
+            words = { ...words, ...(await r.json())}
         } else {
-            authenticated = false;
+            console.log("Not authenticated, redirecting to login.")
+            document.location = `${PUBLIC_ADMIN_ROOT}`
         }
     })
-
-    async function tryAuth() {
-        let r = await fetch(`${PUBLIC_ADMIN_ROOT}/`, {
-            "body": `username=&page=${PUBLIC_ADMIN_ROOT.split("/").pop()}&password=${encodeURI(authPwd)}`,
-            "method": "POST",
-            "mode": "cors",
-            "credentials": "include"
-        });
-        if (r.status === 401) {
-            alert("Authentication failed.")
-        } else if (r.status === 200) {
-            authenticated = true;
-            // future = await r.json()
-        }
-    }
 
     let entries = {
         "def": "",
@@ -130,6 +123,26 @@
         updateCounter += 1;
     }
 
+    function publishWord() {
+        fetch(`${PUBLIC_ADMIN_ROOT}`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                date: day.toISOString().split("T")[0],
+                word: {
+                    word: new_word,
+                    def: entries["def"],
+                    extended_def: entries["extended_def"],
+                    note: entries["note"]
+                },
+            })
+        }
+
+        )
+    }
+
 </script>
 <div class="w-full flex flex-col items-center dark:bg-gray-900 bg-slate-200 dark:text-white min-h-[100vh] pb-10">
     <div class="w-full bg-violet-800 flex justify-center">
@@ -138,20 +151,26 @@
     </div>
     {#if authenticated}
         <div class="w-[70%] mt-8 flex flex-col items-center">
-            <h4 class="w-full text-center text-2xl mb-2">{day}</h4>
+            <div id="datepickerContainer">
+                <Datepicker bind:value={day}>:</Datepicker>
+            </div>
+            <h4 class="w-full text-center text-2xl mb-2">
+                <!--                <input class="decoration-white dark:scheme-dark w-40" type="date" bind:value={day}>-->
+                <!--                {day.toLocaleDateString()}-->
+            </h4>
             <input placeholder="ingenuity"
-                   class="pb-2 text-4xl md:text-6xl font-bold italic text-center dark:bg-slate-600 rounded-2xl"
+                   class="pb-2 text-4xl md:text-6xl font-bold italic text-center placeholder:opacity-50 dark:bg-slate-600 rounded-2xl"
                    bind:value={new_word}>
         </div>
         <button on:click={fetchMW}
-                class="mt-4 text-2xl bg-violet-800 py-3 rounded-2xl px-8 font-bold border border-violet-400 hover:bg-violet-900 active:bg-violet-950 active:ring-4 transition-all ring-violet-500">
+                class="mt-4 text-xl bg-violet-800 py-2 rounded-2xl px-5 font-bold border border-violet-400 hover:bg-violet-900 active:bg-violet-950 active:ring-4 transition-all ring-violet-500">
             Fetch Merriam Webster
         </button>
         <div id="statusBox"
-             class="mt-4 -mb-4 w-full md:w-[70%] bg-slate-800 text-xl font-mono text-left px-4 rounded-lg border-slate-400 border p-2">
+             class="mt-4 hidden -mb-4 w-full md:w-[70%] dark:bg-slate-800 text-xl font-mono text-left px-4 rounded-lg border-slate-400 border p-2">
             <p>ooh bad error</p></div>
         <div id="detailsbox"
-             class="md:w-[70%] flex flex-col mt-8 min-h-80 bg-slate-100 dark:bg-slate-800 text-center text-xl mb-2 px-4 rounded-lg border-slate-400 border pt-3">
+             class="w-[90%] md:w-[70%] flex flex-col mt-8 min-h-80 bg-slate-100 dark:bg-slate-800 text-center text-xl mb-2 px-4 rounded-lg border-slate-400 border pt-3 pb-3">
 
             <h3>Definition:</h3>
             <TextAreaAutoResize placeholder="" bind:value={entries["def"]} minRows={4}
@@ -167,7 +186,7 @@
 
 
         </div>
-        <div class="md:w-[60%] mt-8 bg-slate-100 dark:bg-slate-800 text-center text-xl mb-2 px-4 rounded-lg border-slate-400 border { previewEntries.length > 1 ? 'pt-3' : '' }">
+        <div class="w-[90%] md:w-[60%] mt-8 bg-slate-100 dark:bg-slate-800 text-center text-xl mb-2 px-4 rounded-lg border-slate-400 border { previewEntries.length > 1 ? 'pt-3' : '' }">
             {#key updateCounter}
                 {#each previewEntries as entry, index}
                     <div class="my-4 min-h-10">
@@ -179,23 +198,27 @@
                 {/each}
             {/key}
         </div>
-    {:else }
-        <div class="md:w-[70%] mt-8 bg-slate-100 dark:bg-slate-700 text-center text-xl mb-2 p-4 rounded-lg border-slate-400 border">
-            <label>Password: <input placeholder="Password1" class="pl-1 dark:bg-slate-500 rounded-lg" type="password" bind:value={authPwd}></label>
-            <button class="text-lg bg-violet-800 py-1 rounded-2xl px-4 font-bold border border-violet-400 hover:bg-violet-900 active:bg-violet-950 active:ring-4 transition-all ring-violet-500" on:click={tryAuth}>Log In</button>
-        </div>
+        <!--{:else }-->
+        <!--        <div class="md:w-[70%] mt-8 bg-slate-100 dark:bg-slate-700 text-center text-xl mb-2 p-4 rounded-lg border-slate-400 border">-->
+        <!--            <label>Password: <input placeholder="Password1" class="pl-1 dark:bg-slate-500 rounded-lg" type="password" bind:value={authPwd}></label>-->
+        <!--            <button class="text-lg bg-violet-800 py-1 rounded-2xl px-4 font-bold border border-violet-400 hover:bg-violet-900 active:bg-violet-950 active:ring-4 transition-all ring-violet-500" on:click={tryAuth}>Log In</button>-->
+        <!--        </div>-->
     {/if}
+    <button on:click={publishWord} class="mt-2 text-2xl bg-violet-800 py-3 rounded-2xl px-8 font-bold border border-violet-400 hover:bg-violet-900 active:bg-violet-950 active:ring-4 transition-all ring-violet-500">Publish</button>
 
 
 </div>
 <style>
     @reference "tailwindcss";
     textarea {
-        @apply w-full border border-slate-400 rounded-lg;
+        /*@apply w-full border border-slate-400 rounded-lg bg-slate-600;*/
         font-size: 1rem;
     }
 
     #detailsbox > h3 {
         @apply text-left mt-2;
+    }
+    :global(#datepickerContainer > div > div > input) {
+        @apply text-lg;
     }
 </style>
