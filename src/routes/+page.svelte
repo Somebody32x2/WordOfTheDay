@@ -32,6 +32,13 @@
             console.log(data)
             words = data
             console.log("new words:", words)
+            // set today to the latest date available
+            let dates = Object.keys(words).sort((a, b) => new Date(b) - new Date(a));
+            let [year, month, day] = dates[0].split("-")
+            selectedDate = new Date(year, month - 1, day);
+            todayWord = words[selectedDate.toLocaleDateString('en-CA')]?.word || ""
+
+
             wordEntries = {
                 "def": words[selectedDate.toLocaleDateString('en-CA')]?.def || "",
                 "extended_def": words[selectedDate.toLocaleDateString('en-CA')]?.extended_def || "",
@@ -39,7 +46,14 @@
             }
             updateEntries();
             makeCalendarStyles();
-        })
+        });
+        let nextDate = new Date(selectedDate);
+        nextDate.setDate(selectedDate.getDate() + 1);
+        if (nextDate > new Date()) {
+            document?.getElementById("next").setAttribute("disabled", true)
+        } else {
+            document?.getElementById("next").removeAttribute("disabled", false)
+        }
     })
 
     function makeCalendarStyles() {
@@ -78,6 +92,13 @@
         }
         console.log("new entries: ", entries)
         updateEntries()
+        let nextDate = new Date(date);
+        nextDate.setDate(date.getDate() + 1);
+        if (nextDate > new Date()) {
+            document?.getElementById("next").setAttribute("disabled", true)
+        } else {
+            document?.getElementById("next").removeAttribute("disabled", false)
+        }
     }
 
     function handleDeltaDate(event) {
@@ -94,14 +115,14 @@
     </div>
     <div class="w-[70%] mt-8">
         <div id="datepickerContainer" class="flex justify-between w-full">
-            <button on:click={handleDeltaDate} data-delta-date="-1"
+            <button id="prev" on:click={handleDeltaDate} data-delta-date="-1"
                     class="text-2xl text-white bg-violet-800 py-1 rounded-2xl px-3 font-bold border border-violet-400 hover:bg-violet-900 active:bg-violet-950 active:ring-4 transition-all ring-violet-500">
                 ❮
             </button>
             <Datepicker onselect={onDateChange} color="violet" bind:value={selectedDate}>:</Datepicker>
             <!--                classes={{ polite: "hover:text-blue-700!", dayButton: "hover:text-blue-400", titleVariant: "text-blue-800", monthButton: "text-blue-700" }}-->
-            <button on:click={handleDeltaDate} data-delta-date="1"
-                    class="text-2xl text-white bg-violet-800 py-1 rounded-2xl px-3 font-bold border border-violet-400 hover:bg-violet-900 active:bg-violet-950 active:ring-4 transition-all ring-violet-500">
+            <button id="next" on:click={handleDeltaDate} data-delta-date="1"
+                    class="text-2xl text-white bg-violet-800 py-1 rounded-2xl px-3 font-bold border border-violet-400 hover:bg-violet-900 active:bg-violet-950 active:ring-4 transition-all ring-violet-500 disabled:bg-gray-600 disabled:ring-0">
                 ❯
             </button>
         </div>

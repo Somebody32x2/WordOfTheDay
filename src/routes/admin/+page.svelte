@@ -71,25 +71,37 @@
             let defs = []
 
             let shortDefs = r.map(e => e["shortdef"]).flat();
+            let deepDefs = []
 
             // Behold the pyramid of api perdition
-            let deepDefs = r.map(e => {
-                return e["def"].map(f => {
-                    return f["sseq"].map(g => {
-                        return g.map(h => {
-                            return h[1]["dt"][0][1]
-                        })
+            try {
+                deepDefs = r.map(e => {
+                    return e["def"].map(f => {
+                        return f["sseq"].map(g => {
+                            return g.map(h => {
+                                return h[1]["dt"][0][1]
+                            })
+                        }).flat()
                     }).flat()
                 }).flat()
-            }).flat()
+            } catch (e) {
+                if (shortDefs.length > 0) {
+                    alert("Could not fetch deep definitions, using short definitions instead: " + shortDefs.join("; "))
+                    // deepDefs =
+                } else {
+                    throw new Error("ctCould not fetch deep definitions and no short definitions available.")
+                }
+            }
 
-            if (shortDefs.length !== deepDefs.length) {
+            if (shortDefs.length !== deepDefs.length && shortDefs.length > 0 && deepDefs.length > 0) {
                 let decision = confirm(`Use shortdefs ${shortDefs.join("; ")} instead of deep defs ${deepDefs.join("; ")}? (Cancel for DD)`)
                 if (decision) {
                     defs = shortDefs
                 } else {
                     defs = deepDefs
                 }
+            } else if (!deepDefs || deepDefs.length === 0) {
+                defs = shortDefs
             } else {
                 defs = deepDefs
             }
@@ -163,8 +175,10 @@
                     },
                 })
             }
-        )
-        refreshWords();
+        ).then(()=>{
+            refreshWords();
+        })
+
     }
 
     function refreshWords() {
