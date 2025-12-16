@@ -7,6 +7,7 @@
         PUBLIC_API_ROOT,
         PUBLIC_WORDS_JSON
     } from "$env/static/public";
+    // import {manifest} from "static/manifest.json"
     import TextAreaAutoResize from "$lib/TextAreaAutoResize.svelte";
     import {onMount} from "svelte";
     import {Datepicker} from "flowbite-svelte";
@@ -15,11 +16,13 @@
     let selectedDate = new Date()//.toLocaleDateString('en-CA')
     let oldDate = new Date()//.toLocaleDateString('en-CA')
     let authenticated = false;
-    let authPwd = "";
     let words = {}
+    let showNotes = false;
+    let notes = "";
 
 
     onMount(async () => {
+        // document.head.innerHTML += `<link rel="manifest" href="/manifest.json"/>`
         fetch(`${PUBLIC_WORDS_JSON}`).then(res => res.json()).then(data => {
             console.log(data)
             words = {...words, ...data}
@@ -53,6 +56,9 @@
             console.log("Not authenticated, redirecting to login.")
             document.location = `${PUBLIC_ADMIN_ROOT}`
         }
+        fetch(`${PUBLIC_ADMIN_ROOT}/notes.txt`).then(res => res.text()).then(data => {
+            notes = data;
+        });
     })
 
     let entries = {
@@ -175,7 +181,7 @@
                     },
                 })
             }
-        ).then(()=>{
+        ).then(() => {
             refreshWords();
         })
 
@@ -217,14 +223,14 @@
         let css = ""
         for (const [date, dateEntry] of Object.entries(words)) {
             let [year, month, day] = date.split("-")
-            let dateString = new Date(year, month-1, day).toLocaleDateString("en-US", {
+            let dateString = new Date(year, month - 1, day).toLocaleDateString("en-US", {
                 weekday: 'long',
                 year: 'numeric',
                 month: 'long',
                 day: 'numeric'
             })
             let content = ""
-            if (new Date(year, month - 1, day) > new Date()){
+            if (new Date(year, month - 1, day) > new Date()) {
                 content = "background-color: oklch(51.8% 0.253 323.949); color: white;"
             } else {
                 content = "background-color: oklch(54.6% 0.245 262.881); color: white;"
@@ -259,6 +265,7 @@
         if (changes) {
             let decision = confirm(`You have unsaved changes for the current date: ${deltaMsg} Proceed without saving? (Changes will be lost.)`)
             if (!decision) {
+                selectedDate = new Date(selectedDate); // revert date change in datepicker
                 return; // abort date change
             }
         }
@@ -280,14 +287,54 @@
         onDateChange(selectedDate)
     }
 
+    function toggleNotes() {
+        showNotes = !showNotes;
+    }
+    function saveNotes() {
+        fetch(`${PUBLIC_ADMIN_ROOT}/notes.txt`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    notes: notes
+                })
+            }
+        ).then(() => {
+            console.log("Notes saved.")
+        })
+    }
+
 </script>
+<svelte:head>
+    <link rel="manifest" href="manifest.json"/>
+</svelte:head>
 <div class="w-full flex flex-col items-center dark:bg-gray-900 bg-slate-200 dark:text-white min-h-[100vh] pb-10">
     <div class="w-full bg-violet-800 flex justify-center">
-        <h1 class="text-white font-bold text-center text-2xl m-4">{PUBLIC_TITLE} Word of the Day<i
+        <h1 class="text-white font-bold text-center text-xl md:text-2xl m-2 md:m-4">{PUBLIC_TITLE} Word of the Day<i
                 class="text-xs relative bottom-[0.55rem] lg:bottom-[0.5rem]">*</i></h1>
     </div>
     {#if authenticated}
-        <div class="w-[70%] mt-8 flex flex-col items-center">
+        <div class="w-full flex justify-end mt-2 mb-2 pr-2">
+            {#if showNotes}
+                <button on:click={saveNotes}
+                        class="text-white mr-2 bg-violet-800 py-1 rounded-xl px-2 font-bold border border-violet-400 hover:bg-violet-900 active:bg-violet-950 active:ring-4 transition-all ring-violet-500">
+                    Save
+                </button>
+
+            {/if}
+            <button on:click={toggleNotes}
+                    class="text-white bg-violet-800 py-1 rounded-xl px-2 font-bold border border-violet-400 hover:bg-violet-900 active:bg-violet-950 active:ring-4 transition-all ring-violet-500">
+                Notes
+            </button>
+        </div>
+        {#if showNotes}
+            <div class="w-[90%]">
+                <TextAreaAutoResize placeholder="" bind:value={notes} minRows={4}
+                                    maxRows={40}></TextAreaAutoResize>
+            </div>
+        {/if}
+        <div class="w-[90%] md:w-[70%] mt-8 flex flex-col items-center">
             <div id="datepickerContainer" class="flex justify-between w-full">
                 <button on:click={handleDeltaDate} data-delta-date="-1"
                         class="text-2xl text-white bg-violet-800 py-1 rounded-2xl px-3 font-bold border border-violet-400 hover:bg-violet-900 active:bg-violet-950 active:ring-4 transition-all ring-violet-500">
@@ -305,7 +352,7 @@
             <!--                {day.toLocaleDateString()}-->
             <!--            </h4>-->
             <input placeholder="ingenuity"
-                   class="mt-2 pb-2 text-4xl md:text-6xl font-bold italic text-center placeholder:opacity-50 dark:bg-slate-600 rounded-2xl"
+                   class="mt-2 pb-2 w-full text-4xl md:text-6xl font-bold italic text-center placeholder:opacity-50 dark:bg-slate-600 rounded-2xl"
                    bind:value={new_word}>
         </div>
         <button on:click={fetchMW}

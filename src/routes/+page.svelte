@@ -3,11 +3,16 @@
     import {PUBLIC_ADMIN_ROOT, PUBLIC_TITLE, PUBLIC_WORDS_JSON} from "$env/static/public";
     import {onMount} from "svelte";
     import {Datepicker} from "flowbite-svelte";
+    import {base} from "$app/paths";
     // TODO: change the title to today's word, theme switcher
     let todayWord = "alacrity"
     let selectedDate = new Date();
     let words = {}
-    let wordEntries = {}
+    let wordEntries = {
+        "def": "Loading Words & Definitions...",
+        "extended_def": "",
+        "note": ""
+    }
     let entries = []
     let updateCounter = 0;
 
@@ -54,6 +59,7 @@
         } else {
             document?.getElementById("next").removeAttribute("disabled", false)
         }
+        // updateEntries();
     })
 
     function makeCalendarStyles() {
@@ -126,7 +132,7 @@
                 ❯
             </button>
         </div>
-        <h1 class="text-4xl md:text-6xl font-bold italic text-center">{todayWord}</h1>
+        <h1 class="text-4xl md:text-6xl font-bold text-center mt-4 fancy-font">{todayWord}</h1>
     </div>
 
     <div class="md:w-[60%] mt-8 bg-slate-100 dark:bg-slate-800 text-center text-xl mb-2 px-4 rounded-lg border-slate-400 border { entries.length > 1 ? 'pt-3' : '' }">
@@ -142,14 +148,31 @@
         {/key}
 
     </div>
-    <div class="w-full text-center absolute bottom-2">
-        <i>I understand and accept the implied absolute nerdship.</i>
-        <br>
-        *Not guaranteed to be a single word nor refreshed every single day.
+    <div class="w-full text-center absolute bottom-2 flex justify-between">
+        <div class="flex flex-col items-center justify-end overflow-clip max-w-[20rem]  " style="flex-grow: 0;">
+<!--            <section>-->
+                <h1 class="spin_ring overflow-visible h-[20rem] lg:h-[30rem] aspect-square -ml-[10rem] lg:-ml-[15rem] -mb-20 lg:-mb-30">
+                    {#each ("Minimal AI  •  Handpicked Words w/ ❤ • ".repeat(1).split("")) as char, index}
+                        <span class="char text-[1.2rem]! lg:text-[1.8rem]!" style="--char-index: {index}; font-size: 1.2rem;">{char}</span>
+                    {/each}
+                </h1>
+<!--            </section>-->
+        </div>
+        <div class="flex flex-col justify-end text-xs md:text-sm">
+            <i>I understand and accept the implied absolute nerdship.</i>
+            <!--            <br>-->
+            *Not guaranteed to be a single word nor refreshed every single day.
+        </div>
+        <a href="https://www.merriam-webster.com/word-of-the-day" target="_blank" class="flex flex-col items-center justify-end">
+
+            <img src="{base}/mw.png" class="aspect-square h-18 mr-2">
+            <p class="mr-2 text-xs">Definitions & Quotes</p>
+        </a>
     </div>
 </div>
 <style>
     @reference "tailwindcss";
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap');
 
     #detailsbox > h3 {
         @apply text-left mt-2;
@@ -157,5 +180,41 @@
 
     :global(#datepickerContainer > div > div > input) {
         @apply text-lg;
+    }
+
+    /*https://dev.to/jh3y/circular-text-with-css-57jf*/
+    .spin_ring {
+        --char-count: 40;
+        --inner-angle: calc((360 / var(--char-count, 40)) * 1deg);
+        --character-width: 1.0;
+        --radius: calc((var(--character-width, 1.0) / sin(var(--inner-angle))) * -1ch);
+
+        font-family: monospace;
+        text-transform: uppercase;
+
+        animation: rotation 12s infinite linear;
+        position: relative;
+    }
+
+    .char {
+        --font-size: 2.0rem;
+        display: inline-block;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) rotate(calc(var(--inner-angle) * var(--char-index))) translateY(var(--radius));
+        font-size: calc(var(--font-size, 1) * 2rem);
+    }
+
+    @keyframes rotation {
+        to {
+            rotate: -360deg;
+        }
+    }
+
+    .fancy-font{
+        font-family: "Playfair Display", serif;
+        font-optical-sizing: auto;
+        /*font-weight: < weight >;*/
     }
 </style>
