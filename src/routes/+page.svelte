@@ -51,14 +51,8 @@
             }
             updateEntries();
             makeCalendarStyles();
+            updateButtonStates(selectedDate);
         });
-        let nextDate = new Date(selectedDate);
-        nextDate.setDate(selectedDate.getDate() + 1);
-        if (nextDate > new Date()) {
-            document?.getElementById("next").setAttribute("disabled", true)
-        } else {
-            document?.getElementById("next").removeAttribute("disabled", false)
-        }
         // updateEntries();
     })
 
@@ -87,29 +81,50 @@
         stylesheet.replaceSync(css);
     }
 
+    function findWordDate(fromDate, delta) {
+        const today = new Date();
+        today.setHours(23, 59, 59, 999);
+        let candidate = new Date(fromDate);
+        candidate.setDate(candidate.getDate() + delta);
+        for (let i = 0; i < 730; i++) {
+            if (delta > 0 && candidate > today) return null;
+            if (words[candidate.toLocaleDateString('en-CA')]) return new Date(candidate);
+            candidate.setDate(candidate.getDate() + delta);
+        }
+        return null;
+    }
+
+    function updateButtonStates(date) {
+        const prevBtn = document?.getElementById("prev");
+        const nextBtn = document?.getElementById("next");
+        if (findWordDate(date, -1)) {
+            prevBtn?.removeAttribute("disabled");
+        } else {
+            prevBtn?.setAttribute("disabled", true);
+        }
+        if (findWordDate(date, 1)) {
+            nextBtn?.removeAttribute("disabled");
+        } else {
+            nextBtn?.setAttribute("disabled", true);
+        }
+    }
+
     function onDateChange(date) {
         selectedDate = date;
-        // console.log("chdate words: ", words)
         todayWord = words[selectedDate.toLocaleDateString('en-CA')]?.word || ""
         wordEntries = {
             "def": words[selectedDate.toLocaleDateString('en-CA')]?.def || "",
             "extended_def": words[selectedDate.toLocaleDateString('en-CA')]?.extended_def || "",
             "note": words[selectedDate.toLocaleDateString('en-CA')]?.note || ""
         }
-        console.log("new entries: ", entries)
         updateEntries()
-        let nextDate = new Date(date);
-        nextDate.setDate(date.getDate() + 1);
-        if (nextDate > new Date()) {
-            document?.getElementById("next").setAttribute("disabled", true)
-        } else {
-            document?.getElementById("next").removeAttribute("disabled", false)
-        }
+        updateButtonStates(date)
     }
 
     function handleDeltaDate(event) {
-        selectedDate.setDate(selectedDate.getDate() + Number(event.currentTarget.dataset.deltaDate));
-        onDateChange(selectedDate)
+        const delta = Number(event.currentTarget.dataset.deltaDate);
+        const target = findWordDate(selectedDate, delta);
+        if (target) onDateChange(target);
     }
 </script>
 <div class="w-full flex flex-col items-center dark:bg-gray-900 bg-slate-200 dark:text-white min-h-[100vh] pb-10">
@@ -122,7 +137,7 @@
     <div class="w-[70%] mt-8">
         <div id="datepickerContainer" class="flex justify-between w-full">
             <button id="prev" on:click={handleDeltaDate} data-delta-date="-1"
-                    class="text-2xl text-white bg-violet-800 py-1 rounded-2xl px-3 font-bold border border-violet-400 hover:bg-violet-900 active:bg-violet-950 active:ring-4 transition-all ring-violet-500">
+                    class="text-2xl text-white bg-violet-800 py-1 rounded-2xl px-3 font-bold border border-violet-400 hover:bg-violet-900 active:bg-violet-950 active:ring-4 transition-all ring-violet-500 disabled:bg-gray-600 disabled:ring-0">
                 ❮
             </button>
             <Datepicker onselect={onDateChange} color="violet" bind:value={selectedDate}>:</Datepicker>
