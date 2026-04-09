@@ -4,6 +4,8 @@ const replacements = {
     "{bc}": "<b>:</b> ",
     "{qword}": "<i>",
     "{/qword}": "</i>",
+    "{it}": "<i>",
+    "{/it}": "</i>",
     "{br}": "<br>",
 }
 const reReplacementPatterns = [
