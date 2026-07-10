@@ -148,7 +148,7 @@
 
     }
 
-    let previewEntries = []
+    $: previewEntries = [entries.def ? MiramWebsterToHTML(entries.def) : "", entries.extended_def ? MiramWebsterToHTML(entries.extended_def) : "", entries.note ? entries.note : ""].filter(e => e !== "");
     let updateCounter = 0;
 
     function updatePreviewEntries() {
