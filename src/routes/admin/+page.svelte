@@ -151,6 +151,72 @@
     $: previewEntries = [entries.def ? MiramWebsterToHTML(entries.def) : "", entries.extended_def ? MiramWebsterToHTML(entries.extended_def) : "", entries.note ? entries.note : ""].filter(e => e !== "");
     let updateCounter = 0;
 
+    // Duplicate detection: compare the word being typed against every word already
+    // in `words` (past words from the words json + scheduled ones from future.json).
+    // Spacing/hyphenation is ignored so "stone fruit" still matches "stonefruit".
+    function normalizeWord(word) {
+        return (word || "").toLowerCase().replace(/[^a-z0-9]+/g, "")
+    }
+
+    $: selectedDateKey = selectedDate.toLocaleDateString('en-CA')
+    $: duplicateDates = normalizeWord(new_word) === "" ? [] : Object.entries(words)
+        .filter(([date, entry]) => date !== selectedDateKey && normalizeWord(entry?.word) === normalizeWord(new_word))
+        .map(([date]) => date)
+        .sort()
+
+    function describeDuplicate() {
+        let today = new Date().toLocaleDateString('en-CA')
+        return duplicateDates
+            .map(date => date > today ? `${date} (scheduled)` : date)
+            .join(", ")
+    }
+
+    // Similar-word detection: a softer signal than an exact duplicate, shown as a list
+    // rather than gating publish. Thresholds are tuned so a shared root ("perspicuous"
+    // vs "perspicacity"), an inflection ("imbibe" vs "imbibed") or a typo ("copasetic"
+    // vs "copacetic") surfaces, while a merely shared suffix ("-ation", "-ious") does not.
+    function levenshtein(a, b) {
+        let prev = Array.from({length: b.length + 1}, (_, i) => i)
+        for (let i = 1; i <= a.length; i++) {
+            let cur = [i]
+            for (let j = 1; j <= b.length; j++) {
+                cur.push(Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] !== b[j - 1] ? 1 : 0)))
+            }
+            prev = cur
+        }
+        return prev[b.length]
+    }
+
+    function scoreSimilarity(a, b) {
+        let distance = levenshtein(a, b)
+        let prefix = 0
+        while (prefix < a.length && prefix < b.length && a[prefix] === b[prefix]) {
+            prefix += 1
+        }
+        return {distance, prefix, ratio: 1 - distance / Math.max(a.length, b.length)}
+    }
+
+    function isSimilarWord(a, b) {
+        if (a === b) {
+            return false // exact matches are already reported as duplicates
+        }
+        let {distance, prefix, ratio} = scoreSimilarity(a, b)
+        return prefix >= 5
+            || (distance <= 2 && Math.min(a.length, b.length) >= 4)
+            || (ratio >= 0.72 && prefix >= 2)
+    }
+
+    $: similarWords = normalizeWord(new_word) === "" ? [] : Object.entries(words)
+        .filter(([date, entry]) => date !== selectedDateKey && normalizeWord(entry?.word) !== ""
+            && isSimilarWord(normalizeWord(new_word), normalizeWord(entry.word)))
+        .map(([date, entry]) => ({
+            date,
+            word: entry.word,
+            ...scoreSimilarity(normalizeWord(new_word), normalizeWord(entry.word))
+        }))
+        .sort((a, b) => b.prefix - a.prefix || a.distance - b.distance)
+        .slice(0, 6)
+
     function updatePreviewEntries() {
         previewEntries = []
         if (entries.def !== "") {
@@ -166,6 +232,12 @@
     }
 
     function publishWord() {
+        if (duplicateDates.length > 0) {
+            let decision = confirm(`"${new_word.trim()}" has already been used on ${describeDuplicate()}. Publish it again anyway?`)
+            if (!decision) {
+                return; // abort publish
+            }
+        }
         fetch(`${PUBLIC_ADMIN_ROOT}`, {
                 method: "POST",
                 headers: {
@@ -352,8 +424,19 @@
             <!--                {day.toLocaleDateString()}-->
             <!--            </h4>-->
             <input placeholder="ingenuity"
-                   class="mt-2 pb-2 w-full text-4xl md:text-6xl font-bold italic text-center placeholder:opacity-50 dark:bg-slate-600 rounded-2xl"
+                   class="mt-2 pb-2 w-full text-4xl md:text-6xl font-bold italic text-center placeholder:opacity-50 dark:bg-slate-600 rounded-2xl {duplicateDates.length > 0 ? 'ring-2 ring-amber-500' : ''}"
                    bind:value={new_word}>
+            {#if duplicateDates.length > 0}
+                <div class="mt-2 w-full text-center text-lg px-4 py-2 rounded-lg border border-amber-500 bg-amber-100 dark:bg-amber-950 text-amber-900 dark:text-amber-100">
+                    ⚠ Duplicate: <i class="font-bold">{new_word.trim()}</i> was already used on {describeDuplicate()}.
+                </div>
+            {/if}
+            {#if similarWords.length > 0}
+                <div class="mt-2 w-full text-center text-base px-4 py-2 rounded-lg border border-sky-500 bg-sky-100 dark:bg-sky-950 text-sky-900 dark:text-sky-100">
+                    Similar to {similarWords.length === 1 ? "a word" : "words"} you've used:
+                    {#each similarWords as match, index}<i class="font-bold">{match.word}</i> ({match.date}){index < similarWords.length - 1 ? ", " : ""}{/each}
+                </div>
+            {/if}
         </div>
         <button on:click={fetchMW}
                 class="mt-4 text-xl text-white bg-violet-800 py-2 rounded-2xl px-5 font-bold border border-violet-400 hover:bg-violet-900 active:bg-violet-950 active:ring-4 transition-all ring-violet-500">
